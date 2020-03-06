@@ -1,26 +1,29 @@
 import json
 import os
 from string import Template
+import logging
 
 
 def save_report(report_dir, report_fname, data):
     if not os.path.exists(report_dir):
         os.makedirs(report_dir)
     try:
-        with open('report.html', 'r', encoding='utf-8') as f:
-            tmplt = f.read()
-        s = Template(tmplt)
+        with open('report.html', 'r', encoding='utf-8') as report_default:
+            tmplt = report_default.read()
+        report_tpl = Template(tmplt)
         report_file = os.path.join(report_dir, report_fname)
-        with open(report_file, 'w+', encoding='utf-8') as f:
-            f.write(s.safe_substitute(table_json=json.dumps(data)))
+        with open(report_file, 'w+', encoding='utf-8') as report:
+            report.write(
+                report_tpl.safe_substitute(table_json=json.dumps(data))
+            )
     except KeyError:
-        print("table_json field not found in report template")
+        logging.error("table_json field not found in report template")
         return
     except OSError as e:
-        print(f"File not found: {str(e)}")
+        logging.error(f"File not found: {str(e)}")
         return
-    except Exception as e:
-        print(f"Unknown exception {str(e)}")
+    except BaseException:
+        logging.exception("Unknown exception")
         return
     else:
         return True

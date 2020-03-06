@@ -12,7 +12,6 @@ def get_logs_stat(log_processed, limit=None):
     for i, _ in enumerate(stats):
         stats[i]['count_perc'] = stats[i]['count'] / total_count * 100
         stats[i]['time_perc'] = stats[i]['time_sum'] / total_time * 100
-    
     stats.sort(key=lambda k: k['time_sum'], reverse=True)
 
     if limit:

@@ -1,4 +1,5 @@
 import gzip
+import logging
 
 
 def parsing_log(file_obj, log_nginx_pat):
@@ -24,27 +25,27 @@ def process_log(log_data, log_nginx_pat):
 
     try:
         open_log = gzip.open if log_data.file_type == '.gz' else open
-        f = open_log(log_data.file_path, 'rt', encoding='utf-8')
+        log_file = open_log(log_data.file_path, 'rt', encoding='utf-8')
     except OSError:
-        print(f"File not found: {log_data.file_path}")
+        logging.error(f"File not found: {log_data.file_path}")
         return
 
-    for url, request_time in parsing_log(f, log_nginx_pat):
+    for url, request_time in parsing_log(log_file, log_nginx_pat):
         total_lines += 1
-        if url and request_time: 
+        if url and request_time:
             if url not in log_processed:
                 log_processed[url] = [request_time]
             else:
                 log_processed[url].append(request_time)
         else:
             error_parse_line += 1
-    f.close()
+    log_file.close()
     if total_lines == 0 or \
-        ((error_parse_line / total_lines) > allowed_errors_proc):
+       ((error_parse_line / total_lines) > allowed_errors_proc):
         err_txt = "Failed proccess logs: total " \
                   "lines={}, errors={}, allowed_proc={}"
-        print(err_txt.format(total_lines, 
-                             error_parse_line, 
-                             allowed_errors_proc))
+        logging.error(err_txt.format(total_lines,
+                      error_parse_line,
+                      allowed_errors_proc))
         return {}
     return log_processed
