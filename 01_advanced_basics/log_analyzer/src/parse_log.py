@@ -27,7 +27,7 @@ def process_log(log_data, log_nginx_pat):
         open_log = gzip.open if log_data.file_type == '.gz' else open
         log_file = open_log(log_data.file_path, 'rt', encoding='utf-8')
     except OSError:
-        logging.error(f"File not found: {log_data.file_path}")
+        logging.error(f"Log file not found: {log_data.file_path}")
         return
 
     for url, request_time in parsing_log(log_file, log_nginx_pat):

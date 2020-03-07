@@ -23,7 +23,7 @@ def save_report(report_dir, report_fname, data):
         logging.error(f"File not found: {str(e)}")
         return
     except BaseException:
-        logging.exception("Unknown exception")
+        logging.exception("Unknown exception with save report")
         return
     else:
         return True

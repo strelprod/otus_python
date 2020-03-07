@@ -1,7 +1,10 @@
 import logging
 import re
 from .config import prepare_config
-from .find_logs import find_last_logfile
+from .find_logs import (
+    find_last_logfile, parse_log_file_name, 
+    get_logfiles, LogFileData
+)
 from .logs_stat import get_logs_stat
 from .parse_log import process_log
 from .report import is_report_exists, save_report
