@@ -33,11 +33,4 @@ def save_report(report_dir, report_fname, data):
 
 
 def is_report_exists(reports_dir, report_fname):
-    try:
-        report_fpath = os.path.join(reports_dir, report_fname)
-        report = open(report_fpath, 'r')
-    except OSError:
-        return False
-    else:
-        report.close()
-        return True
+    return os.path.exists(os.path.join(reports_dir, report_fname))
