@@ -44,7 +44,7 @@ def main():
         if log_file_data:
             dt = datetime.strftime(log_file_data.dt, '%Y.%m.%d')
             report_fname = REPORT_TPL.format(dt)
-            if is_report_exists('./reports', report_fname):
+            if is_report_exists(config_prepared['REPORT_DIR'], report_fname):
                 logging.info(f"Report {report_fname} already exists")
                 return
             log_processed = process_log(log_file_data, LOG_NGINX_PAT)

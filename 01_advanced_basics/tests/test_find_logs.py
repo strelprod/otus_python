@@ -31,7 +31,7 @@ class TestFindLogs(unittest.TestCase):
 
     def test_parse_log_file_name(self):
         parsed = parse_log_file_name(self.log_fils[0], LOG_FILE_PAT)
-        real = ('nginx-access-ui.log-20170630', '20170630', '')
+        real = (self.log_fils[0], '20170630', '')
         self.assertEqual(parsed, real)
         parsed = parse_log_file_name(self.log_fils[1], LOG_FILE_PAT)
         self.assertEqual(parsed, ())

@@ -2,13 +2,16 @@ import json
 import os
 from string import Template
 import logging
+import shutil
 
 
 def save_report(report_dir, report_fname, data):
     if not os.path.exists(report_dir):
         os.makedirs(report_dir)
     try:
-        with open('report.html', 'r', encoding='utf-8') as report_default:
+        js_file = 'jquery.tablesorter.min.js'
+        shutil.copyfile(f'./report_tpl/{js_file}', os.path.join(report_dir, js_file))
+        with open('./report_tpl/report.html', 'r', encoding='utf-8') as report_default:
             tmplt = report_default.read()
         report_tpl = Template(tmplt)
         report_file = os.path.join(report_dir, report_fname)
@@ -30,7 +33,11 @@ def save_report(report_dir, report_fname, data):
 
 
 def is_report_exists(reports_dir, report_fname):
-    for _, _, files in os.walk(reports_dir):
-        if report_fname in files:
-            return True
-    return False
+    try:
+        report_fpath = os.path.join(reports_dir, report_fname)
+        report = open(report_fpath, 'r')
+    except OSError:
+        return False
+    else:
+        report.close()
+        return True

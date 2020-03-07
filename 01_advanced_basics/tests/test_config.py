@@ -23,7 +23,7 @@ class TestConfig(unittest.TestCase):
         upd_conf = prepare_config(self.config_default,
                                   self.config_priority_fname,
                                   LOG_FORMATTER)
-        self.assertDictEqual(upd_conf, {"key": "new"})
+        self.assertDictEqual(upd_conf, self.config_priority)
 
     def test_existing_conf_file(self):
         upd_conf = prepare_config(self.config_default,
@@ -34,4 +34,3 @@ class TestConfig(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-#python -m unittest discover
