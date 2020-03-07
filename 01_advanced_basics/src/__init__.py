@@ -2,7 +2,7 @@ import logging
 import re
 from .config import prepare_config
 from .find_logs import (
-    find_last_logfile, parse_log_file_name, 
+    find_last_logfile, parse_log_file_name,
     get_logfiles, LogFileData
 )
 from .logs_stat import get_logs_stat, get_url_stats

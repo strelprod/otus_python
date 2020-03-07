@@ -1,9 +1,6 @@
 import unittest
-import json
 import os
 import sys
-import shutil
-from datetime import datetime
 from statistics import mean, median
 
 sys.path.append(os.path.realpath('.'))

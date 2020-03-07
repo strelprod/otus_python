@@ -4,11 +4,10 @@
 
 import logging
 import argparse
-import re
 from datetime import datetime
 from src import (
-    prepare_config, find_last_logfile, is_report_exists, 
-    process_log, get_logs_stat, save_report, 
+    prepare_config, find_last_logfile, is_report_exists,
+    process_log, get_logs_stat, save_report,
     CONFIG, LOG_FORMATTER, LOG_FORMAT,
     LOG_FILE_PAT, LOG_NGINX_PAT, REPORT_TPL
 )
@@ -32,7 +31,7 @@ def parse_inpurt_args():
 def main():
     try:
         inpurt_args = parse_inpurt_args()
-        config_prepared = prepare_config(CONFIG, 
+        config_prepared = prepare_config(CONFIG,
                                          inpurt_args.config,
                                          LOG_FORMATTER)
         if not config_prepared:

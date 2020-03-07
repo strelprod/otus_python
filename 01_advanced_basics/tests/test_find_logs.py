@@ -1,5 +1,4 @@
 import unittest
-import json
 import os
 import sys
 import shutil
@@ -8,7 +7,7 @@ from datetime import datetime
 sys.path.append(os.path.realpath('.'))
 
 from src import (
-    parse_log_file_name, find_last_logfile, 
+    parse_log_file_name, find_last_logfile,
     LOG_FILE_PAT, LogFileData
 )
 
