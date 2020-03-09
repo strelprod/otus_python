@@ -8,7 +8,7 @@ sys.path.append(os.path.realpath('.'))
 
 from src import (
     parse_log_file_name, find_last_logfile,
-    LOG_FILE_PAT, LogFileData
+    LOG_FILE_PATH, LogFileData
 )
 
 class TestFindLogs(unittest.TestCase):
@@ -29,16 +29,16 @@ class TestFindLogs(unittest.TestCase):
         shutil.rmtree(self.logs_path)
 
     def test_parse_log_file_name(self):
-        parsed = parse_log_file_name(self.log_files[0], LOG_FILE_PAT)
+        parsed = parse_log_file_name(self.log_files[0], LOG_FILE_PATH)
         real = (self.log_files[0], '20170630', '')
         self.assertEqual(parsed, real)
-        parsed = parse_log_file_name(self.log_files[1], LOG_FILE_PAT)
+        parsed = parse_log_file_name(self.log_files[1], LOG_FILE_PATH)
         self.assertEqual(parsed, ())
     
     def test_find_last_logfile(self):
         filepath = os.path.join(self.logs_path, self.log_files[0])
         dt = datetime.strptime('20170630', '%Y%m%d')
-        parsed = find_last_logfile(self.logs_path, LOG_FILE_PAT)
+        parsed = find_last_logfile(self.logs_path, LOG_FILE_PATH)
         self.assertEqual(parsed, LogFileData(filepath, dt, ''))
 
 

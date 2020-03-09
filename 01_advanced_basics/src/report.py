@@ -5,6 +5,9 @@ import logging
 import shutil
 
 
+REPORT_TPL = "report-{}.html"
+
+
 def save_report(report_dir, report_fname, data):
     if not os.path.exists(report_dir):
         os.makedirs(report_dir)
@@ -15,21 +18,14 @@ def save_report(report_dir, report_fname, data):
             tmplt = report_default.read()
         report_tpl = Template(tmplt)
         report_file = os.path.join(report_dir, report_fname)
+        report_tpl_filled = report_tpl.safe_substitute(table_json=json.dumps(data))
         with open(report_file, 'w+', encoding='utf-8') as report:
-            report.write(
-                report_tpl.safe_substitute(table_json=json.dumps(data))
-            )
-    except KeyError:
-        logging.error("table_json field not found in report template")
-        return
-    except OSError as e:
-        logging.error(f"File not found: {str(e)}")
-        return
-    except BaseException:
-        logging.exception("Unknown exception with save report")
-        return
-    else:
+            report.write(report_tpl_filled)
         return True
+    except KeyError:
+        raise KeyError("table_json field not found in report template")
+    except FileNotFoundError as e:
+        raise FileNotFoundError(str(e))
 
 
 def is_report_exists(reports_dir, report_fname):

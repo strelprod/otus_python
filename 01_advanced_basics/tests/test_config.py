@@ -5,7 +5,7 @@ import sys
 
 sys.path.append(os.path.realpath('.'))
 
-from src import prepare_config, LOG_FORMATTER
+from src import prepare_config
 
 
 class TestConfig(unittest.TestCase):
@@ -21,15 +21,14 @@ class TestConfig(unittest.TestCase):
 
     def test_config_priority(self):
         upd_conf = prepare_config(self.config_default,
-                                  self.config_priority_fname,
-                                  LOG_FORMATTER)
+                                  self.config_priority_fname)
         self.assertDictEqual(upd_conf, self.config_priority)
 
     def test_existing_conf_file(self):
-        upd_conf = prepare_config(self.config_default,
-                                  "fake_conf.json",
-                                  LOG_FORMATTER)
-        self.assertEqual(upd_conf, None)
+        self.assertRaises(FileNotFoundError, 
+                          prepare_config,
+                          self.config_default,
+                          "fake_conf.json")
 
 
 if __name__ == '__main__':
