@@ -6,6 +6,7 @@ import re
 LOG_NGINX_REGEX = r'\"(GET|POST|HEAD|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH)' \
                   r' (.+) (HTTP|http)\/\d+\.\d\".+(\d\.\d+)$'
 LOG_NGINX_LINE = re.compile(LOG_NGINX_REGEX)
+ALLOWED_ERRORS_PROC = 0.1
 
 
 def parsing_log(file_obj, log_nginx_line):
@@ -23,7 +24,24 @@ def parsing_log(file_obj, log_nginx_line):
             yield url, float(request_time)
 
 
-def process_log(log_data, log_nginx_line, allowed_errors_proc=0.1):
+def verify_allowed_errors(total_lines, 
+                          error_parse_line, 
+                          allowed_errors_proc):
+    errors_proc = error_parse_line / total_lines
+    if (total_lines == 0) or (errors_proc > allowed_errors_proc):
+        err_txt = "Failed proccess logs: total " \
+                  "lines={}, errors={}, allowed_proc={}"
+        logging.error(err_txt.format(total_lines,
+                      error_parse_line,
+                      allowed_errors_proc))
+        raise AssertionError(err_txt.format(total_lines,
+                                            error_parse_line,
+                                            allowed_errors_proc))
+
+
+def process_log(log_data, 
+                log_nginx_line=LOG_NGINX_LINE, 
+                allowed_errors_proc=ALLOWED_ERRORS_PROC):
     total_lines = 0
     error_parse_line = 0
     log_processed = {}
@@ -32,6 +50,7 @@ def process_log(log_data, log_nginx_line, allowed_errors_proc=0.1):
         open_log = gzip.open if log_data.file_type == '.gz' else open
         log_file = open_log(log_data.file_path, 'rt', encoding='utf-8')
     except FileNotFoundError:
+        logging.error(f"Log file not found: {log_data.file_path}")
         raise FileNotFoundError(f"Log file not found: {log_data.file_path}")
 
     for url, request_time in parsing_log(log_file, log_nginx_line):
@@ -44,11 +63,7 @@ def process_log(log_data, log_nginx_line, allowed_errors_proc=0.1):
         else:
             error_parse_line += 1
     log_file.close()
-    if total_lines == 0 or \
-       ((error_parse_line / total_lines) > allowed_errors_proc):
-        err_txt = "Failed proccess logs: total " \
-                  "lines={}, errors={}, allowed_proc={}"
-        raise AssertionError(err_txt.format(total_lines,
-                             error_parse_line,
-                             allowed_errors_proc))
+    verify_allowed_errors(total_lines, 
+                          error_parse_line, 
+                          allowed_errors_proc)
     return log_processed

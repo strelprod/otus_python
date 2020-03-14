@@ -29,16 +29,18 @@ class TestReport(unittest.TestCase):
         shutil.rmtree(self.report_path)
     
     def test_existing_reports(self):
-        check = is_report_exists(self.report_path, self.reports[0])
-        self.assertTrue(check)
-        check = is_report_exists(self.report_path, "fake_rep.html")
-        self.assertFalse(check)
+        self.assertRaises(AssertionError, 
+                          is_report_exists,
+                          self.report_path,
+                          self.reports[0])
+        self.assertIsNone(is_report_exists(self.report_path, 
+                                           "fake_rep.html"))
 
     def test_save_report(self):
-        save_res = save_report(self.report_path, 'new_report.html', {})
+        save_report(self.report_path, 'new_report.html', {})
         fpath = os.path.join(self.report_path, 'new_report.html')
         is_file_exists = os.path.exists(fpath)
-        self.assertEqual(save_res, is_file_exists)
+        self.assertEqual(is_file_exists, True)
 
 
 if __name__ == '__main__':
