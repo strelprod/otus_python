@@ -33,7 +33,7 @@ class TestFindLogs(unittest.TestCase):
         real = (self.log_files[0], '20170630', '')
         self.assertEqual(parsed, real)
         parsed = parse_log_file_name(self.log_files[1], LOG_FILE_PATH)
-        self.assertEqual(parsed, ())
+        self.assertEqual(parsed, None)
     
     def test_find_last_logfile(self):
         filepath = os.path.join(self.logs_path, self.log_files[0])

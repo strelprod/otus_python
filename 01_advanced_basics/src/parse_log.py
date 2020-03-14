@@ -6,6 +6,7 @@ import re
 LOG_NGINX_REGEX = r'\"(GET|POST|HEAD|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH)' \
                   r' (.+) (HTTP|http)\/\d+\.\d\".+(\d\.\d+)$'
 LOG_NGINX_LINE = re.compile(LOG_NGINX_REGEX)
+ALLOWED_ERRORS_PROC = 0.1
 
 
 def parsing_log(file_obj, log_nginx_line):
@@ -40,7 +41,7 @@ def verify_allowed_errors(total_lines,
 
 def process_log(log_data, 
                 log_nginx_line=LOG_NGINX_LINE, 
-                allowed_errors_proc=0.1):
+                allowed_errors_proc=ALLOWED_ERRORS_PROC):
     total_lines = 0
     error_parse_line = 0
     log_processed = {}
