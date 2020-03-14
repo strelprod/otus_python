@@ -30,7 +30,7 @@ def get_logfiles(logs_dir, log_file_path):
                 yield ()
 
 
-def find_last_logfile(logs_dir, log_file_path):
+def find_last_logfile(logs_dir, log_file_path=LOG_FILE_PATH):
     min_dt_diff = float("inf")
     log_file_data = None
     for data in get_logfiles(logs_dir, log_file_path):

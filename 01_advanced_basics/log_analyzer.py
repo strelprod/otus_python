@@ -4,12 +4,9 @@
 
 import logging
 import argparse
-from datetime import datetime
 from src import (
-    prepare_config, find_last_logfile, is_report_exists,
-    process_log, get_logs_stat, save_report,
-    CONFIG, LOG_FILE_PATH, LOG_NGINX_LINE, 
-    REPORT_TPL
+    prepare_config, find_last_logfile, get_report_fname,
+    process_log, get_logs_stat, save_report
 )
 import json
 
@@ -24,6 +21,21 @@ logging.basicConfig(level=logging.DEBUG,
                     filename=None)
 
 
+def set_logger_file(conf, log_formatter=LOG_FORMATTER):
+    if "LOGGER_FILE" in conf:
+        try:
+            root_logger = logging.getLogger()
+            file_handler = logging.FileHandler(conf['LOGGER_FILE'])
+            file_handler.setFormatter(log_formatter)
+            root_logger.addHandler(file_handler)
+        except FileNotFoundError:
+            msg = "Logger_file using in config not found: {}"
+            logging.error(msg.format(conf['LOGGER_FILE']))
+            raise FileNotFoundError(msg.format(conf['LOGGER_FILE']))
+    else:
+        logging.info("LOGGER_FILE is not in config, logging to stdout")
+
+
 def parse_inpurt_args():
     parser = argparse.ArgumentParser(description='Process logs')
     parser.add_argument('--config', action="store", dest="config",
@@ -36,26 +48,21 @@ def parse_inpurt_args():
 def main():
     try:
         inpurt_args = parse_inpurt_args()
-        logging.debug("Done parse_inpurt_args")
-        config_prepared = prepare_config(CONFIG,
-                                         inpurt_args.config,
-                                         LOG_FORMATTER)
-        logging.debug("Done config_prepared")
-        log_file_data = find_last_logfile(config_prepared['LOG_DIR'],
-                                          LOG_FILE_PATH)
-        logging.debug("Done find_last_logfile")
+        logging.info("Done parse_inpurt_args")
+        config_prepared = prepare_config(inpurt_args.config)
+        logging.info("Done config_prepared")
+        set_logger_file(config_prepared)
+        log_file_data = find_last_logfile(config_prepared['LOG_DIR'])
+        logging.info("Done find_last_logfile")
         if log_file_data:
-            dt = datetime.strftime(log_file_data.dt, '%Y.%m.%d')
-            report_fname = REPORT_TPL.format(dt)
-            if is_report_exists(config_prepared['REPORT_DIR'], report_fname):
-                logging.info(f"Exit: Report {report_fname} already exists")
-                return
-            log_processed = process_log(log_file_data, LOG_NGINX_LINE)
-            logging.debug("Done process_log")
-            
+            report_fname = get_report_fname(config_prepared['REPORT_DIR'],
+                                            log_file_data.dt)
+            logging.info("Done get_report_fname")
+            log_processed = process_log(log_file_data)
+            logging.info("Done process_log")
             logs_stat = get_logs_stat(log_processed,
                                       config_prepared['REPORT_SIZE'])
-            logging.debug("Done get_logs_stat")
+            logging.info("Done get_logs_stat")
             save_report(config_prepared['REPORT_DIR'],
                         report_fname,
                         logs_stat)

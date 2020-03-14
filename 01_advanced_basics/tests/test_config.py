@@ -20,15 +20,15 @@ class TestConfig(unittest.TestCase):
         os.remove(self.config_priority_fname)
 
     def test_config_priority(self):
-        upd_conf = prepare_config(self.config_default,
-                                  self.config_priority_fname)
+        upd_conf = prepare_config(self.config_priority_fname,
+                                  self.config_default)
         self.assertDictEqual(upd_conf, self.config_priority)
 
     def test_existing_conf_file(self):
         self.assertRaises(FileNotFoundError, 
                           prepare_config,
-                          self.config_default,
-                          "fake_conf.json")
+                          "fake_conf.json",
+                          self.config_default)
 
 
 if __name__ == '__main__':
