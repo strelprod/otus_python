@@ -39,9 +39,16 @@ GENDERS = {
 }
 
 
-def field_check(check, data):
-    if (check is True and data) \
-        or check is False:
+def required_check(required, data):
+    if (required is True and data) \
+        or required is False:
+        return True
+    return False
+
+
+def nullable_check(nullable, data):
+    if (nullable is False and data) \
+        or nullable is True:
         return True
     return False
 
@@ -56,9 +63,13 @@ class CharField:
         self.nullable = nullable
     
     def is_valid(self, data):
-        return isinstance(data, str) and \
-            field_check(self.nullable, data) and \
-            field_check(self.required, data)
+        if self.required is True and data is None:
+            return False
+        if not isinstance(data, str):
+            return False
+        if self.nullable is False and data == "":
+            return False
+        return True
 
 
 class ArgumentsField:
@@ -71,9 +82,13 @@ class ArgumentsField:
         self.nullable = nullable
 
     def is_valid(self, data):
-        return isinstance(data, dict) and \
-            field_check(self.nullable, data) and \
-            field_check(self.required, data)
+        if self.required is True and data is None:
+            return False
+        if not isinstance(data, dict):
+            return False
+        if self.nullable is False and data == {}:
+            return False
+        return True
 
 
 class EmailField(CharField):
@@ -101,11 +116,15 @@ class PhoneField:
         self.nullable = nullable
 
     def is_valid(self, data):
-        return (isinstance(data, str) or isinstance(data, int)) and \
-            len(str(data)) == 11 and \
-            str(data)[0] == '7' and \
-            field_check(self.nullable, data) and \
-            field_check(self.required, data)
+        if self.required is True and data is None:
+            return False
+        if not (isinstance(data, str) or isinstance(data, int)):
+            return False
+        if self.nullable is False and (data == "" or data == 0):
+            return False
+        if not (len(str(data)) == 11 and str(data)[0] == '7'):
+            return False
+        return True
 
 
 class DateField:
@@ -125,8 +144,11 @@ class DateField:
                 _ = datetime.datetime.strptime(data, self.dt_format)
         except:
             return False
-        return field_check(self.nullable, data) and \
-            field_check(self.required, data)
+        if self.required is True and data is None:
+            return False
+        if self.nullable is False and data == "":
+            return False
+        return True
 
 
 class BirthDayField:
@@ -150,8 +172,11 @@ class BirthDayField:
                     return False
         except:
             return False
-        return field_check(self.nullable, data) and \
-            field_check(self.required, data)
+        if self.required is True and data is None:
+            return False
+        if self.nullable is False and data == "":
+            return False
+        return True
 
 
 class GenderField:
@@ -164,10 +189,13 @@ class GenderField:
         self.nullable = nullable
     
     def is_valid(self, data):
-        return field_check(self.nullable, data) and \
-            field_check(self.required, data) and \
-            isinstance(data, int) and \
-            data in GENDERS
+        if self.required is True and data is None:
+            return False
+        if not isinstance(data, int):
+            return False
+        if data not in GENDERS:
+            return False
+        return True
 
 
 class ClientIDsField:
@@ -178,7 +206,9 @@ class ClientIDsField:
         self.required = required
 
     def is_valid(self, data):
-        if not field_check(self.required, data):
+        if self.required is True and data is None:
+            return False
+        if not isinstance(data, list) or not data:
             return False
         for val in data:
             if not isinstance(val, int):
@@ -190,20 +220,21 @@ class ClientsInterestsRequest:
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
     
-    def __init__(self, params):
+    def __init__(self, params, ctx, store, *args, **kwargs):
         self.params = params
+        self.ctx = ctx
+        self.store = store
 
-    def execute_method(self, ctx, store, *args, **kwargs):
+    def execute_method(self):
         invalid = self.validate_params()
         if invalid:
             errors = ", ".join(invalid)
             errors_msg = {
-                "error": f"Запрос интересов. Неладины поля: {errors}"
+                "error": f"ClientsInterestsRequest. Invalid fields: {errors}"
             }
             return errors_msg, INVALID_REQUEST
-        client_ids = self.params.get('client_ids')
-        ctx['nclients'] = len(client_ids)
-        return self.interests_per_cid(client_ids, store), OK
+        self.ctx['nclients'] = len(self.client_ids)
+        return self.interests_per_cid(self.client_ids, self.store), OK
 
     def interests_per_cid(self, client_ids, store):
         clients = {
@@ -213,10 +244,14 @@ class ClientsInterestsRequest:
     
     def validate_params(self):
         invalid = []
-        if not self.client_ids.is_valid(self.params.get('client_ids')):
+        if self.client_ids.is_valid(self.params.get('client_ids')):
+            self.client_ids = self.params.get('client_ids')
+        else:
             invalid.append('client_ids')
-        if not self.date.is_valid(self.params.get('date')):
-            invalid.append('client_ids')
+        if self.date.is_valid(self.params.get('date')):
+            self.date = self.params.get('date')
+        else:
+            invalid.append('date')
         return invalid
 
 
@@ -237,39 +272,43 @@ class OnlineScoreRequest:
         ('first_name', 'last_name'),
         ('gender', 'birthday')
     ]
-
-    data = {
-        'first_name': None,
-        'last_name': None,
-        'email': None,
-        'phone': None,
-        'birthday': None,
-        'gender': None
-    }
-
+    
     default_admin_score = 42
     
-    def __init__(self, params):
+    def __init__(self, 
+                 params, 
+                 ctx, 
+                 store, 
+                 is_admin, 
+                 *args, 
+                 **kwargs):
         self.params = params
+        self.ctx = ctx
+        self.store = store
+        self.is_admin = is_admin
         self.valid_pair = None
 
-    def execute_method(self, ctx, store, is_admin, **kwargs):
+    def execute_method(self):
         if not self.validate_params():
-            return {}, INVALID_REQUEST
-        ctx['has'] = self.valid_pair
-        for field in self.valid_pair:
-            self.data[field] = self.params.get(field)
+            error_msg = {
+                "error": f"OnlineScoreRequest. Valid pairs was not found"
+            }
+            return error_msg, INVALID_REQUEST
+        self.ctx['has'] = self.valid_pair
+        data = {
+            field: getattr(self, field) for field in self.valid_pair
+        }
         score = {
-            "score": self.client_score(store, 
-                                       is_admin,
-                                       self.data)
+            "score": self.client_score(self.is_admin,
+                                       self.store, 
+                                       data)
         }
         return score, OK
-
-    def client_score(self, store, is_admin, data):
+    
+    def client_score(self, is_admin, store, data):
         if is_admin:
             return self.default_admin_score
-        return get_score(store, **self.data)
+        return get_score(store, **data)
 
     def validate_params(self):
         self.valid_pair = []
@@ -278,10 +317,13 @@ class OnlineScoreRequest:
             if hasattr(self, field):
                 if getattr(self, field).is_valid(val):
                     self.valid_pair.append(field)
+                    setattr(self, field, val)
                 else:
                     return False
+        if not self.valid_pair:
+            return False
         for pair in self.valid_pairs:
-            if set(self.valid_pair).issubset(set(pair)):
+            if set(pair).issubset(set(self.valid_pair)):
                 return True
         
 
@@ -296,58 +338,84 @@ class MethodRequest:
         'online_score': OnlineScoreRequest
     }
 
-    def __init__(self, request, *args, **kwargs):
+    def __init__(self, request, ctx, store, *args, **kwargs):
         self.params = request['body']
+        self.request = request
+        self.ctx = ctx
+        self.store = store
+        self.args = args
+        self.kwargs = kwargs
 
     @property
     def is_admin(self):
         return self.login == ADMIN_LOGIN
 
-    def execute_method(self, ctx, store):
+    def execute_method(self):
         invalid = self.validate_params()
         if invalid:
             errors = ", ".join(invalid)
             errors_msg = {
-                "error": f"Основной запрос. Неладины поля: {errors}"
+                "error": f"MethodRequest. Invalid fields: {errors}"
             }
             return errors_msg, INVALID_REQUEST
-        #TODO check_auth()
+        
+        if not check_auth(self):
+            return {}, FORBIDDEN
+
         method_strategy = self.method_strategies.get(
             self.params.get('method')
         )
         if not method_strategy:
             return {}, NOT_FOUND
-        method = method_strategy(self.params['arguments'], self.is_admin)
-        return method.execute_method(ctx, store)
+        method = method_strategy(self.params['arguments'],
+                                 self.ctx, 
+                                 self.store,
+                                 self.is_admin,
+                                 *self.args,
+                                 **self.kwargs)
+        return method.execute_method()
 
     def validate_params(self):
         invalid = []
-        if not self.account.is_valid(self.params.get('account')):
+        if self.account.is_valid(self.params.get('account')):
+            self.account = self.params.get('account')
+        else:
             invalid.append('account')
-        if not self.login.is_valid(self.params.get('login')):
-            invalid.append('account')
-        if not self.token.is_valid(self.params.get('token')):
-            invalid.append('account')
-        if not self.arguments.is_valid(self.params.get('arguments')):
-            invalid.append('account')
-        if not self.method.is_valid(self.params.get('method')):
-            invalid.append('account')
+        if self.login.is_valid(self.params.get('login')):
+            self.login = self.params.get('login')
+        else:
+            invalid.append('login')
+        if self.token.is_valid(self.params.get('token')):
+            self.token = self.params.get('token')
+        else:
+            invalid.append('token')
+        if self.arguments.is_valid(self.params.get('arguments')):
+            self.arguments = self.params.get('arguments')
+        else:
+            invalid.append('arguments')
+        if self.method.is_valid(self.params.get('method')):
+            self.method = self.params.get('method')
+        else:
+            invalid.append('method')
         return invalid
 
 
 def check_auth(request):
     if request.is_admin:
-        digest = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
+        dt = datetime.datetime.now().strftime("%Y%m%d%H")
+        token_data = (dt + ADMIN_SALT).encode('utf-8')
+        digest = hashlib.sha512(token_data).hexdigest()
     else:
-        digest = hashlib.sha512(request.account + request.login + SALT).hexdigest()
+        token_data = (request.account + request.login + SALT).encode('utf-8')
+        digest = hashlib.sha512(token_data).hexdigest()
     if digest == request.token:
         return True
     return False
 
 
 def method_handler(request, ctx, store):
-    get_result = MethodRequest(request)
-    response, code = get_result.execute_method(ctx, store)
+    get_result = MethodRequest(request, ctx, store)
+    response, code = get_result.execute_method()
     return response, code
 
 
@@ -389,7 +457,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         if code not in ERRORS:
             r = {"response": response, "code": code}
         else:
-            r = {"error": response or ERRORS.get(code, "Unknown Error"), "code": code}
+            r = {"error": response.get("error") or ERRORS.get(code, "Unknown Error"), "code": code}
         context.update(r)
         logging.info(context)
         self.wfile.write(json.dumps(r).encode('utf-8'))
