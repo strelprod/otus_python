@@ -28,12 +28,6 @@ def get_report_tpl():
     return report_tpl
 
 
-def copy_file_to_report_dir(report_dir, fname):
-    fpath = os.path.join(report_dir, fname)
-    if not is_file_exists(fpath):
-        shutil.copyfile(f'./report_tpl/{fname}', fpath)
-
-
 def save_report(report_dir, report_fname, data):
     if not os.path.exists(report_dir):
         os.makedirs(report_dir)
