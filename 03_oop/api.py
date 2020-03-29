@@ -37,6 +37,7 @@ GENDERS = {
     MALE: "male",
     FEMALE: "female",
 }
+DEFAULT_FIELD_VAL = "REQUIRED_FIELD_IS_NONE"
 
 
 class CharField:
@@ -53,11 +54,14 @@ class CharField:
         return self.data.get(instance)
 
     def __set__(self, instance, value):
-        if (self.required is True and value is None) or \
+        if (self.required is True and value == DEFAULT_FIELD_VAL) or \
             (not isinstance(value, str)) or \
-            (self.nullable is False and value == ""):
+            (self.nullable is False and (value == "" or value is None)):
             raise ValueError(f"Incorrect CharField value: {value}")
-        self.data[instance] = value
+        elif value == DEFAULT_FIELD_VAL:
+            self.data[instance] = None
+        else:
+            self.data[instance] = value
 
 
 class ArgumentsField:
@@ -74,11 +78,14 @@ class ArgumentsField:
         return self.data.get(instance)
 
     def __set__(self, instance, value):
-        if (self.required is True and value is None) or \
+        if (self.required is True and value == DEFAULT_FIELD_VAL) or \
             (not isinstance(value, dict)) or \
-            (self.nullable is False and value == {}):
+            (self.nullable is False and (value == {} or value is None)):
             raise ValueError(f"Incorrect ArgumentsField value: {value}")
-        self.data[instance] = value
+        elif value == DEFAULT_FIELD_VAL:
+            self.data[instance] = None
+        else:
+            self.data[instance] = value
 
 
 class EmailField(CharField):
@@ -99,7 +106,6 @@ class EmailField(CharField):
         if self.pattern not in value:
             self.data.pop(instance, None)
             raise ValueError(f"Incorrect EmailField value: {value}")
-        self.data[instance] = value
 
 
 class PhoneField:
@@ -116,12 +122,15 @@ class PhoneField:
         return self.data.get(instance)
 
     def __set__(self, instance, value):
-        if (self.required is True and value is None) or \
+        if (self.required is True and value == DEFAULT_FIELD_VAL) or \
             (not (isinstance(value, str) or isinstance(value, int))) or \
-            (self.nullable is False and (value == "" or value == 0)) or \
+            (self.nullable is False and (value == "" or value == 0 or value is None)) or \
             (not (len(str(value)) == 11 and str(value)[0] == '7')):
             raise ValueError(f"Incorrect PhoneField value: {value}")
-        self.data[instance] = value
+        elif value == DEFAULT_FIELD_VAL:
+            self.data[instance] = None
+        else:
+            self.data[instance] = value
 
 
 class DateField:
@@ -141,14 +150,17 @@ class DateField:
 
     def __set__(self, instance, value):
         try:
-            if value:
+            if value and value != DEFAULT_FIELD_VAL:
                 value = datetime.datetime.strptime(value, self.dt_format)
         except:
             raise ValueError(f"Incorrect DateField value: {value}")
-        if (self.required is True and value is None) or \
-            (self.nullable is False and value == ""):
+        if (self.required is True and value == DEFAULT_FIELD_VAL) or \
+            (self.nullable is False and (value == "" or value is None)):
             raise ValueError(f"Incorrect DateField value: {value}")
-        self.data[instance] = value
+        elif value == DEFAULT_FIELD_VAL:
+            self.data[instance] = None
+        else:
+            self.data[instance] = value
 
 
 class BirthDayField:
@@ -168,17 +180,20 @@ class BirthDayField:
 
     def __set__(self, instance, dt_birth):
         try:
-            if dt_birth:
+            if dt_birth and dt_birth != DEFAULT_FIELD_VAL:
                 dt_birth = datetime.datetime.strptime(dt_birth, self.dt_format)
                 dt_now = datetime.datetime.now()
                 year_diff = relativedelta(dt_now, dt_birth).years
         except:
             raise ValueError(f"Incorrect BirthDayField value: {dt_birth}")
-        if (self.required is True and dt_birth is None) or \
-            (self.nullable is False and dt_birth == "") or \
+        if (self.required is True and dt_birth == DEFAULT_FIELD_VAL) or \
+            (self.nullable is False and (dt_birth == "" or dt_birth is None)) or \
             year_diff > 70:
             raise ValueError(f"Incorrect BirthDayField value: {dt_birth}")
-        self.data[instance] = dt_birth
+        elif dt_birth == DEFAULT_FIELD_VAL:
+            self.data[instance] = None
+        else:
+            self.data[instance] = dt_birth
 
 
 class GenderField:
@@ -195,11 +210,14 @@ class GenderField:
         return self.data.get(instance)
 
     def __set__(self, instance, value):
-        if (self.required is True and value is None) or \
+        if (self.required is True and value == DEFAULT_FIELD_VAL) or \
             (not isinstance(value, int)) or \
             (value not in GENDERS):
             raise ValueError(f"Incorrect GenderField value: {value}")
-        self.data[instance] = value
+        elif value == DEFAULT_FIELD_VAL:
+            self.data[instance] = None
+        else:
+            self.data[instance] = value
 
 
 class ClientIDsField:
@@ -214,7 +232,7 @@ class ClientIDsField:
         return self.data.get(instance)
 
     def __set__(self, instance, value):
-        if (self.required is True and value is None) or \
+        if (self.required is True and value == DEFAULT_FIELD_VAL) or \
             (not isinstance(value, list) or not value):
             raise ValueError(f"Incorrect ClientIDsField value: {value}")
         for val in value:
@@ -260,7 +278,7 @@ class ClientsInterestsRequest:
     def validate_params(self):
         invalid = []
         for param in self.request_fileds:
-            if not self.set_param(param, self.params.get(param)):
+            if not self.set_param(param, self.params.get(param, DEFAULT_FIELD_VAL)):
                 invalid.append(param)
         return invalid
 
@@ -334,7 +352,7 @@ class OnlineScoreRequest:
     def validate_params(self):
         self.valid_pair = []
         for field in self.params:
-            val = self.params.get(field)
+            val = self.params.get(field, DEFAULT_FIELD_VAL)
             if hasattr(self, field):
                 if not self.set_param(field, val):
                     return False
@@ -410,7 +428,7 @@ class MethodRequest:
     def validate_params(self):
         invalid = []
         for param in self.request_fileds:
-            if not self.set_param(param, self.params.get(param)):
+            if not self.set_param(param, self.params.get(param, DEFAULT_FIELD_VAL)):
                 invalid.append(param)
         return invalid
 
