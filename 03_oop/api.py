@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import abc
 import json
 import datetime
 import logging
@@ -9,8 +8,9 @@ import hashlib
 import uuid
 from optparse import OptionParser
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from scoring import get_interests, get_score
+from weakref import WeakKeyDictionary
 from dateutil.relativedelta import relativedelta
+from scoring import get_interests, get_score
 
 
 SALT = "Otus"
@@ -39,187 +39,195 @@ GENDERS = {
 }
 
 
-def required_check(required, data):
-    if (required is True and data) \
-        or required is False:
-        return True
-    return False
-
-
-def nullable_check(nullable, data):
-    if (nullable is False and data) \
-        or nullable is True:
-        return True
-    return False
-
-
 class CharField:
-    def __init__(self, 
-                 required, 
+    def __init__(self,
+                 required,
                  nullable,
                  *args,
                  **kwargs):
         self.required = required
         self.nullable = nullable
-    
-    def is_valid(self, data):
-        if self.required is True and data is None:
-            return False
-        if not isinstance(data, str):
-            return False
-        if self.nullable is False and data == "":
-            return False
-        return True
+        self.data = WeakKeyDictionary()
+
+    def __get__(self, instance, owner):
+        return self.data.get(instance)
+
+    def __set__(self, instance, value):
+        if (self.required is True and value is None) or \
+            (not isinstance(value, str)) or \
+            (self.nullable is False and value == ""):
+            raise ValueError(f"Incorrect CharField value: {value}")
+        self.data[instance] = value
 
 
 class ArgumentsField:
-    def __init__(self, 
-                 required, 
+    def __init__(self,
+                 required,
                  nullable,
                  *args,
                  **kwargs):
         self.required = required
         self.nullable = nullable
+        self.data = WeakKeyDictionary()
 
-    def is_valid(self, data):
-        if self.required is True and data is None:
-            return False
-        if not isinstance(data, dict):
-            return False
-        if self.nullable is False and data == {}:
-            return False
-        return True
+    def __get__(self, instance, owner):
+        return self.data.get(instance)
+
+    def __set__(self, instance, value):
+        if (self.required is True and value is None) or \
+            (not isinstance(value, dict)) or \
+            (self.nullable is False and value == {}):
+            raise ValueError(f"Incorrect ArgumentsField value: {value}")
+        self.data[instance] = value
 
 
 class EmailField(CharField):
     pattern = "@"
 
-    def __init__(self, 
-                 required, 
+    def __init__(self,
+                 required,
                  nullable,
                  *args,
                  **kwargs):
         super().__init__(required, nullable)
 
-    def is_valid(self, data):
-        return super().is_valid(data) \
-            and self.pattern in data
+    def __get__(self, instance, owner):
+        return self.data.get(instance)
+
+    def __set__(self, instance, value):
+        super().__set__(instance, value)
+        if self.pattern not in value:
+            self.data.pop(instance, None)
+            raise ValueError(f"Incorrect EmailField value: {value}")
+        self.data[instance] = value
 
 
 class PhoneField:
-    def __init__(self, 
-                 required, 
+    def __init__(self,
+                 required,
                  nullable,
                  *args,
                  **kwargs):
         self.required = required
         self.nullable = nullable
+        self.data = WeakKeyDictionary()
 
-    def is_valid(self, data):
-        if self.required is True and data is None:
-            return False
-        if not (isinstance(data, str) or isinstance(data, int)):
-            return False
-        if self.nullable is False and (data == "" or data == 0):
-            return False
-        if not (len(str(data)) == 11 and str(data)[0] == '7'):
-            return False
-        return True
+    def __get__(self, instance, owner):
+        return self.data.get(instance)
+
+    def __set__(self, instance, value):
+        if (self.required is True and value is None) or \
+            (not (isinstance(value, str) or isinstance(value, int))) or \
+            (self.nullable is False and (value == "" or value == 0)) or \
+            (not (len(str(value)) == 11 and str(value)[0] == '7')):
+            raise ValueError(f"Incorrect PhoneField value: {value}")
+        self.data[instance] = value
 
 
 class DateField:
     dt_format = "%d.%m.%Y"
 
-    def __init__(self, 
-                 required, 
+    def __init__(self,
+                 required,
                  nullable,
                  *args,
                  **kwargs):
         self.required = required
         self.nullable = nullable
+        self.data = WeakKeyDictionary()
 
-    def is_valid(self, data):
+    def __get__(self, instance, owner):
+        return self.data.get(instance)
+
+    def __set__(self, instance, value):
         try:
-            if data:
-                _ = datetime.datetime.strptime(data, self.dt_format)
+            if value:
+                value = datetime.datetime.strptime(value, self.dt_format)
         except:
-            return False
-        if self.required is True and data is None:
-            return False
-        if self.nullable is False and data == "":
-            return False
-        return True
+            raise ValueError(f"Incorrect DateField value: {value}")
+        if (self.required is True and value is None) or \
+            (self.nullable is False and value == ""):
+            raise ValueError(f"Incorrect DateField value: {value}")
+        self.data[instance] = value
 
 
 class BirthDayField:
     dt_format = "%d.%m.%Y"
 
-    def __init__(self, 
-                 required, 
+    def __init__(self,
+                 required,
                  nullable,
                  *args,
                  **kwargs):
         self.required = required
         self.nullable = nullable
+        self.data = WeakKeyDictionary()
 
-    def is_valid(self, data):
+    def __get__(self, instance, owner):
+        return self.data.get(instance)
+
+    def __set__(self, instance, dt_birth):
         try:
-            if data:
-                dt_birth = datetime.datetime.strptime(data, self.dt_format)
+            if dt_birth:
+                dt_birth = datetime.datetime.strptime(dt_birth, self.dt_format)
                 dt_now = datetime.datetime.now()
                 year_diff = relativedelta(dt_now, dt_birth).years
-                if year_diff > 70:
-                    return False
         except:
-            return False
-        if self.required is True and data is None:
-            return False
-        if self.nullable is False and data == "":
-            return False
-        return True
+            raise ValueError(f"Incorrect BirthDayField value: {dt_birth}")
+        if (self.required is True and dt_birth is None) or \
+            (self.nullable is False and dt_birth == "") or \
+            year_diff > 70:
+            raise ValueError(f"Incorrect BirthDayField value: {dt_birth}")
+        self.data[instance] = dt_birth
 
 
 class GenderField:
-    def __init__(self, 
-                 required, 
+    def __init__(self,
+                 required,
                  nullable,
                  *args,
                  **kwargs):
         self.required = required
         self.nullable = nullable
-    
-    def is_valid(self, data):
-        if self.required is True and data is None:
-            return False
-        if not isinstance(data, int):
-            return False
-        if data not in GENDERS:
-            return False
-        return True
+        self.data = WeakKeyDictionary()
+
+    def __get__(self, instance, owner):
+        return self.data.get(instance)
+
+    def __set__(self, instance, value):
+        if (self.required is True and value is None) or \
+            (not isinstance(value, int)) or \
+            (value not in GENDERS):
+            raise ValueError(f"Incorrect GenderField value: {value}")
+        self.data[instance] = value
 
 
 class ClientIDsField:
-    def __init__(self, 
+    def __init__(self,
                  required,
                  *args,
                  **kwargs):
         self.required = required
+        self.data = WeakKeyDictionary()
 
-    def is_valid(self, data):
-        if self.required is True and data is None:
-            return False
-        if not isinstance(data, list) or not data:
-            return False
-        for val in data:
+    def __get__(self, instance, owner):
+        return self.data.get(instance)
+
+    def __set__(self, instance, value):
+        if (self.required is True and value is None) or \
+            (not isinstance(value, list) or not value):
+            raise ValueError(f"Incorrect ClientIDsField value: {value}")
+        for val in value:
             if not isinstance(val, int):
-                return False
-        return True
+                raise ValueError(f"Incorrect ClientIDsField value: {val}")
+        self.data[instance] = value
 
 
 class ClientsInterestsRequest:
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
-    
+    request_fileds = ['client_ids', 'date']
+
     def __init__(self, params, ctx, store, *args, **kwargs):
         self.params = params
         self.ctx = ctx
@@ -241,17 +249,19 @@ class ClientsInterestsRequest:
             cid: get_interests(store, cid) for cid in client_ids
         }
         return clients
-    
+
+    def set_param(self, field, value):
+        try:
+            setattr(self, field, value)
+            return True
+        except ValueError:
+            return False
+
     def validate_params(self):
         invalid = []
-        if self.client_ids.is_valid(self.params.get('client_ids')):
-            self.client_ids = self.params.get('client_ids')
-        else:
-            invalid.append('client_ids')
-        if self.date.is_valid(self.params.get('date')):
-            self.date = self.params.get('date')
-        else:
-            invalid.append('date')
+        for param in self.request_fileds:
+            if not self.set_param(param, self.params.get(param)):
+                invalid.append(param)
         return invalid
 
 
@@ -272,15 +282,15 @@ class OnlineScoreRequest:
         ('first_name', 'last_name'),
         ('gender', 'birthday')
     ]
-    
+
     default_admin_score = 42
-    
-    def __init__(self, 
-                 params, 
-                 ctx, 
-                 store, 
-                 is_admin, 
-                 *args, 
+
+    def __init__(self,
+                 params,
+                 ctx,
+                 store,
+                 is_admin,
+                 *args,
                  **kwargs):
         self.params = params
         self.ctx = ctx
@@ -294,38 +304,49 @@ class OnlineScoreRequest:
                 "error": f"OnlineScoreRequest. Valid pairs was not found"
             }
             return error_msg, INVALID_REQUEST
+
         self.ctx['has'] = self.valid_pair
-        data = {
-            field: getattr(self, field) for field in self.valid_pair
-        }
+
         score = {
             "score": self.client_score(self.is_admin,
-                                       self.store, 
-                                       data)
+                                       self.store)
         }
         return score, OK
-    
-    def client_score(self, is_admin, store, data):
+
+    def client_score(self, is_admin, store):
         if is_admin:
             return self.default_admin_score
-        return get_score(store, **data)
+        return get_score(store,
+                         self.phone,
+                         self.email,
+                         self.birthday,
+                         self.gender,
+                         self.first_name,
+                         self.last_name)
+
+    def set_param(self, field, value):
+        try:
+            setattr(self, field, value)
+            return True
+        except ValueError:
+            return False
 
     def validate_params(self):
         self.valid_pair = []
         for field in self.params:
             val = self.params.get(field)
             if hasattr(self, field):
-                if getattr(self, field).is_valid(val):
-                    self.valid_pair.append(field)
-                    setattr(self, field, val)
-                else:
+                if not self.set_param(field, val):
                     return False
+                self.valid_pair.append(field)
+
         if not self.valid_pair:
             return False
+
         for pair in self.valid_pairs:
             if set(pair).issubset(set(self.valid_pair)):
                 return True
-        
+
 
 class MethodRequest:
     account = CharField(required=False, nullable=True)
@@ -333,6 +354,10 @@ class MethodRequest:
     token = CharField(required=True, nullable=True)
     arguments = ArgumentsField(required=True, nullable=True)
     method = CharField(required=True, nullable=False)
+    request_fileds = [
+        'account', 'login', 'token',
+        'arguments', 'method'
+    ]
     method_strategies = {
         'clients_interests': ClientsInterestsRequest,
         'online_score': OnlineScoreRequest
@@ -358,7 +383,7 @@ class MethodRequest:
                 "error": f"MethodRequest. Invalid fields: {errors}"
             }
             return errors_msg, INVALID_REQUEST
-        
+
         if not check_auth(self):
             return {}, FORBIDDEN
 
@@ -368,35 +393,25 @@ class MethodRequest:
         if not method_strategy:
             return {}, NOT_FOUND
         method = method_strategy(self.params['arguments'],
-                                 self.ctx, 
+                                 self.ctx,
                                  self.store,
                                  self.is_admin,
                                  *self.args,
                                  **self.kwargs)
         return method.execute_method()
 
+    def set_param(self, field, value):
+        try:
+            setattr(self, field, value)
+            return True
+        except ValueError:
+            return False
+
     def validate_params(self):
         invalid = []
-        if self.account.is_valid(self.params.get('account')):
-            self.account = self.params.get('account')
-        else:
-            invalid.append('account')
-        if self.login.is_valid(self.params.get('login')):
-            self.login = self.params.get('login')
-        else:
-            invalid.append('login')
-        if self.token.is_valid(self.params.get('token')):
-            self.token = self.params.get('token')
-        else:
-            invalid.append('token')
-        if self.arguments.is_valid(self.params.get('arguments')):
-            self.arguments = self.params.get('arguments')
-        else:
-            invalid.append('arguments')
-        if self.method.is_valid(self.params.get('method')):
-            self.method = self.params.get('method')
-        else:
-            invalid.append('method')
+        for param in self.request_fileds:
+            if not self.set_param(param, self.params.get(param)):
+                invalid.append(param)
         return invalid
 
 
@@ -437,13 +452,20 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             request = json.loads(data_string)
         except:
             code = BAD_REQUEST
-        
+
         if request:
             path = self.path.strip("/")
             logging.info("%s: %s %s" % (self.path, data_string, context["request_id"]))
             if path in self.router:
                 try:
-                    response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
+                    response, code = self.router[path](
+                        {
+                            "body": request,
+                            "headers": self.headers
+                        },
+                        context,
+                        self.store
+                    )
                 except Exception as e:
                     logging.exception("Unexpected error: %s" % e)
                     code = INTERNAL_ERROR
@@ -461,7 +483,6 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         context.update(r)
         logging.info(context)
         self.wfile.write(json.dumps(r).encode('utf-8'))
-        return
 
 
 if __name__ == "__main__":
@@ -470,7 +491,8 @@ if __name__ == "__main__":
     op.add_option("-l", "--log", action="store", default=None)
     (opts, args) = op.parse_args()
     logging.basicConfig(filename=opts.log, level=logging.INFO,
-                        format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
+                        format='[%(asctime)s] %(levelname).1s %(message)s', 
+                        datefmt='%Y.%m.%d %H:%M:%S')
     server = HTTPServer(("localhost", opts.port), MainHTTPHandler)
     logging.info("Starting server at %s" % opts.port)
     try:
